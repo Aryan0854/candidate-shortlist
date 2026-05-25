@@ -1,0 +1,43 @@
+# Portable tools & environments
+/tools/
+/.venv/
+**/node_modules/
+node_modules/
+
+# IDE files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Java Spring Boot build outputs
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+
+# Python compile / build files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Local database data & logs
+**/data/
+*.log
+**/server.log
+
+# Temp files and uploads
+**/tmp/
+**/temp/
+**/upload/
+.DS_Store
+
+# Local environment configuration keys (keep them out of GitHub)
+.env
+**/.env
