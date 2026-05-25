@@ -1,11 +1,8 @@
 import React from "react";
 import { AppBar, Toolbar, Typography, IconButton, Button, Box} from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useLocation } from "react-router-dom";
 
 const Header = ({ onBack, showBack, title, onLogout }) => {
-    const location = useLocation();
-const isWelcomePage = location.pathname === "/";
 
   return (
     // Use AppBar for the fixed header

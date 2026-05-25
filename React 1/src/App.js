@@ -59,23 +59,14 @@ function AppContent() {
   // --- Data States ---
   const [jobFiles, setJobFiles] = useState([]);
   const [jobRequirements, setJobRequirements] = useState([]);
-  const [allCandidateData, setAllCandidateData] = useState([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [candidateFile, setCandidateFile] = useState(null);
   const [candidateFileName, setCandidateFileName] = useState("");
   const [requiredLanguages, setRequiredLanguages] = useState("");
   const [shortlistedCandidates, setShortlistedCandidates] = useState([]);
-  const [isFiltered, setIsFiltered] = useState(false);
-  const [rawSearchTerm, setRawSearchTerm] = useState("");
   const [filteredRawData, setFilteredRawData] = useState([]);
   const [selectedShortlistIds, setSelectedShortlistIds] = useState(new Set());
-
-  // --- View States ---
-  // headerTitle is now derived from the URL, but keeping state if needed for dynamic updates
-  const [headerTitle, setHeaderTitle] = useState(
-    "Candidate Shortlisting System"
-  );
   const [analysisResults, setAnalysisResults] = useState([]);
   const [showResumeResults, setShowResumeResults] = useState(false);
   const [selectedJobDetail, setSelectedJobDetail] = useState(null);
@@ -96,19 +87,6 @@ function AppContent() {
       return {};
     }
   });
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const token = params.get("token");
-
-    if (token && location.pathname === "/temp-login") {
-      validateToken(token);
-    }
-  }, [location]);
-
-  useEffect(() => {
-    localStorage.setItem("resume_selectedFiles", JSON.stringify(selectedFiles));
-  }, [selectedFiles]);
 
   const validateToken = useCallback(
     async (token) => {
@@ -148,6 +126,19 @@ function AppContent() {
     [navigate]
   );
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+
+    if (token && location.pathname === "/temp-login") {
+      validateToken(token);
+    }
+  }, [location, validateToken]);
+
+  useEffect(() => {
+    localStorage.setItem("resume_selectedFiles", JSON.stringify(selectedFiles));
+  }, [selectedFiles]);
+
   // Combined fetch function for ALL required initial data
   const fetchInitialData = useCallback(async () => {
     setIsDataLoading(true);
@@ -160,7 +151,6 @@ function AppContent() {
 
       if (!candidatesResponse.ok) throw new Error("Failed to fetch candidates");
       const candidateResult = await candidatesResponse.json();
-      setAllCandidateData(candidateResult);
       setFilteredRawData(candidateResult);
 
       // *** NEW: Initialize selection to ALL candidates upon data load ***
@@ -635,12 +625,12 @@ function AppContent() {
                         candidateFileName={candidateFileName}
                         filteredRawData={filteredRawData}
                         refetchAllCandidates={fetchInitialData}
-                        rawSearchTerm={rawSearchTerm}
+                        rawSearchTerm={""}
                         handleRawSearch={() => { }}
                         handleClearRawSearch={() => { }}
                         loading={loading}
                         isDataLoading={isDataLoading}
-                        isFiltered={isFiltered}
+                        isFiltered={false}
                         selectedShortlistIds={selectedShortlistIds}
                         toggleShortlistSelection={(id) => {
                           setSelectedShortlistIds((prev) => {

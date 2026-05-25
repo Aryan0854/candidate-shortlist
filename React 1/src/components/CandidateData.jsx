@@ -198,7 +198,6 @@ const CandidateShortlisting = (props) => {
         selectedShortlistIds,
         toggleShortlistSelection, 
         filteredRawData: rawCandidateData = [], 
-        candidateFile, 
         refetchAllCandidates, 
     } = props;
     

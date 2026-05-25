@@ -18,11 +18,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Grid, // Grid is imported but not used directly in this file's main render
-  // NEW IMPORTS for Stepper
-  Stepper,
-  Step,
-  StepLabel,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";

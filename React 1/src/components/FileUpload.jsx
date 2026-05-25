@@ -1,5 +1,5 @@
 // FileUpload.jsx
-import React, { useState, useRef, useEffect }  from 'react';
+import React, { useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
