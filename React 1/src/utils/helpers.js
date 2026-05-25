@@ -1,9 +1,10 @@
 // // src/utils/helpers.js
 
 // /** Base URL for your Node server */
-export const API_URL = 'http://localhost:8081'; 
-export const AI_API_URL = 'http://localhost:8000';
-export const NODE_API_URL = 'http://localhost:3001';
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8081'; 
+export const AI_API_URL = process.env.REACT_APP_AI_API_URL || 'http://localhost:8000';
+export const NODE_API_URL = process.env.REACT_APP_NODE_API_URL || 'http://localhost:3001';
+export const RESUME_API_URL = process.env.REACT_APP_RESUME_API_URL || 'http://localhost:8001';
 
 // /** Global Back Button Style used across multiple components */
 export const ICON_BACK_BUTTON_STYLE = {

@@ -5,7 +5,7 @@ import {
   Chip, IconButton, Fade, CircularProgress, Tooltip, TextField, InputAdornment,
 } from '@mui/material';
 import { toast } from 'react-toastify';
-import { API_URL } from '../utils/helpers';
+import { API_URL, NODE_API_URL } from '../utils/helpers';
 import ShortlistDisplayTable from './ShortlistDisplayTable';
 import AnalysisResults from './AnalysisResults';
 import CloudUpload from '@mui/icons-material/CloudUpload';
@@ -55,7 +55,7 @@ const handleDeleteResumeApi = async (candidateId) => {
 
 const handleAnalyzeResumesApi = async (brId, candidatesForAnalysis, requiredSkills) => {
   try {
-    const response = await fetch(`http://localhost:3001/analysis/trigger`, {
+    const response = await fetch(`${NODE_API_URL}/analysis/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ brId, candidatesForAnalysis, requiredSkills }),

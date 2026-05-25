@@ -2,6 +2,7 @@ package com.pmo.demo.proxy;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,9 +20,10 @@ public class SkillsMatchProxy {
 	@Autowired
 	private RestTemplate restTemplate;
 
-    public ResponseEntity<String> proxyMatchSkills(String autoReqId) {
+	@Value("${python.skillsmatch.url:http://localhost:8000/match-skills/}")
+	private String pythonUrl;
 
-        String pythonUrl = "http://localhost:8000/match-skills/";
+    public ResponseEntity<String> proxyMatchSkills(String autoReqId) {
 
         // Headers
         HttpHeaders headers = new HttpHeaders();

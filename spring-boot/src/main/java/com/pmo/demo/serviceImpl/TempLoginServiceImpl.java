@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.pmo.demo.entity.TempLoginToken;
@@ -22,6 +23,9 @@ public class TempLoginServiceImpl implements TempLoginService{
 
 	private final TempLoginTokenRepository tokenRepository;
     private final EmailService emailService;
+
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     @Override
     public void createTempLoginLink(String email, String redirectPath) {
@@ -42,7 +46,7 @@ public class TempLoginServiceImpl implements TempLoginService{
 
         tokenRepository.save(entity);
 
-        String link = "http://localhost:3000/temp-login?token=" + token;
+        String link = frontendUrl + "/temp-login?token=" + token;
 
         try {
             emailService.sendMagicLink(email, link);

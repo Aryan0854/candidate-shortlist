@@ -27,7 +27,7 @@ import Login from "./components/Login";
 import Welcome from "./components/Welcome";
 // IMPORT NEW COMPONENT
 import CandidateUpload from "./components/CandidateUpload";
-import { API_URL, AI_API_URL } from "./utils/helpers";
+import { API_URL, AI_API_URL, RESUME_API_URL } from "./utils/helpers";
 
 const theme = createTheme({
   palette: {
@@ -240,7 +240,7 @@ function AppContent() {
       formData.append("jd_file", brFile);
       formData.append("resume_zip", cvFile); // ✅ SINGLE ZIP
 
-      const response = await fetch(`http://localhost:8001/search_resumes_v2`, {
+      const response = await fetch(`${RESUME_API_URL}/search_resumes_v2`, {
         method: "POST",
         body: formData,
       });
