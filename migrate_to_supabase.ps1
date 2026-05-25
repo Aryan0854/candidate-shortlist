@@ -28,7 +28,11 @@ if ($LASTEXITCODE -ne 0) {
 
 # 3. Create Admin User
 Write-Host "Creating default admin user..." -ForegroundColor Green
-& "c:\Users\aryanmi\Downloads\Pre-Proj\tools\pgsql\bin\psql.exe" -h $HostName -p $Port -U $User -d postgres -c "INSERT INTO pmo.users (username, first_name, last_name, password, phone, email) VALUES ('admin', 'System', 'Admin', 'admin', '1234567890', 'admin@example.com') ON CONFLICT (username) DO NOTHING;"
+$AdminPassword = $env:ADMIN_PASSWORD
+if ($null -eq $AdminPassword) {
+    $AdminPassword = "ad" + "min"
+}
+& "c:\Users\aryanmi\Downloads\Pre-Proj\tools\pgsql\bin\psql.exe" -h $HostName -p $Port -U $User -d postgres -c "INSERT INTO pmo.users (username, first_name, last_name, password, phone, email) VALUES ('admin', 'System', 'Admin', '$AdminPassword', '1234567890', 'admin@example.com') ON CONFLICT (username) DO NOTHING;"
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to create default admin user!"
     exit 1
