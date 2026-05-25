@@ -18,7 +18,7 @@ import com.pmo.demo.service.EmployeeService;
 
 @RestController
 @RequestMapping("/employee")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*")
 public class EmployeeController {
 	private final EmployeeService employeeService;
 

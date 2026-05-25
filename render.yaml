@@ -1,0 +1,59 @@
+# render.yaml — Render Blueprint for Aryan0854/candidate-shortlist
+# Deploy all backend services in one click from GitHub.
+#
+# Steps:
+# 1. Push this file to GitHub (already done).
+# 2. Go to https://dashboard.render.com/select-repo?type=blueprint
+# 3. Select the `Aryan0854/candidate-shortlist` repository.
+# 4. Render will detect this file and create all services automatically.
+# 5. Fill in the secret environment variables in the Render dashboard.
+
+services:
+
+  # ─── Spring Boot Backend ──────────────────────────────────────────────────
+  - name: pmo-spring-boot
+    type: web
+    runtime: docker
+    dockerfilePath: ./spring-boot/Dockerfile
+    dockerContext: ./spring-boot
+    plan: free
+    healthCheckPath: /api/user/health
+    envVars:
+      - key: DB_URL
+        value: jdbc:postgresql://db.cfqpdjpvzgkvpipainzp.supabase.co:5432/postgres
+      - key: DB_USERNAME
+        value: postgres
+      - key: DB_PASSWORD
+        sync: false   # Set this secret in Render dashboard
+      - key: python_skillsmatch_url
+        fromService:
+          name: pmo-candidate-shortlist
+          type: web
+          property: host
+          # Render will fill this in as https://<candidate-shortlist-url>/match-skills/
+      - key: app_frontend_url
+        value: https://pmo-react.vercel.app   # Update after Vercel deploy
+
+  # ─── Candidate Shortlist Python FastAPI (port 8000) ──────────────────────
+  - name: pmo-candidate-shortlist
+    type: web
+    runtime: docker
+    dockerfilePath: ./candidate-shortlist/Dockerfile
+    dockerContext: ./candidate-shortlist
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.cfqpdjpvzgkvpipainzp:$(DB_PASSWORD)@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+      - key: DB_PASSWORD
+        sync: false   # Set this secret in Render dashboard
+
+  # ─── Resume Screening Python FastAPI (port 8001) ─────────────────────────
+  - name: pmo-resume-screening
+    type: web
+    runtime: docker
+    dockerfilePath: ./resume-screening/Dockerfile
+    dockerContext: ./resume-screening
+    plan: free
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false   # Set your real OpenAI API key in Render dashboard

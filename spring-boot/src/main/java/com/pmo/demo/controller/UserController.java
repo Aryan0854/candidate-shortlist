@@ -21,7 +21,7 @@ import com.pmo.demo.service.TempLoginService;
 import com.pmo.demo.service.UserService;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*")
 @RequestMapping("/auth")
 public class UserController {
 
