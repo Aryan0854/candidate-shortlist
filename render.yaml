@@ -20,9 +20,9 @@ services:
     healthCheckPath: /api/user/health
     envVars:
       - key: DB_URL
-        value: jdbc:postgresql://db.cfqpdjpvzgkvpipainzp.supabase.co:5432/postgres
+        value: jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres?prepareThreshold=0
       - key: DB_USERNAME
-        value: postgres
+        value: postgres.cfqpdjpvzgkvpipainzp
       - key: DB_PASSWORD
         sync: false   # Set this secret in Render dashboard
       - key: python_skillsmatch_url
