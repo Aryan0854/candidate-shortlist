@@ -8,3 +8,4 @@ sentence-transformers==5.1.2
 SQLAlchemy==2.0.44
 uvicorn==0.38.0
 psycopg2-binary==2.9.11
+python-multipart
