@@ -1,22 +1,35 @@
-from openai import OpenAI
+import os
+import requests
+import json
 import re
 
-client = OpenAI()
-
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 PRIMARY_TECH_SKILLS = {
-    "genai", "java", ".net", "dotnet", "python", "sql", "azure", "aws",
-    "gcp", "cloud", "microservices", "spring", "springboot", "react",
-    "angular", "node", "kubernetes", "docker", "ml", "machine learning",
-    "nlp", "data engineering", "big data", "statistical methods",
-    "database management", "oracle"
+    # Languages & Core Tech
+    "java", "python", "sql", "unix", "linux", "c", "html", "dotnet", ".net", "springboot", "spring",
+    # Cloud & DevOps
+    "aws", "azure", "gcp", "cloud", "docker", "kubernetes", "git", "digitalocean",
+    # Tools & Platforms
+    "splunk", "datadog", "servicenow", "pagerduty", "jira", "grafana", "prometheus", "elk", "kibana",
+    "appdynamics", "autosys", "remedy", "servicenow", "winscp", "putty", "postman", "jmeter",
+    # ML & Modern Tech
+    "ai", "genai", "generative ai", "ml", "machine learning", "nlp", "data engineering",
+    # Domains & Roles
+    "support", "incident management", "noc", "l1", "l2", "l3", "production support", "application support",
+    "telecom", "dwdm", "sdh", "transmission", "testing", "api testing", "api", "database management", "oracle"
 }
 
 def extract_skills_from_text(text):
     """
     Calls the LLM to extract skills from JD or Resume text.
-    Returns a comma-separated string of skills.
+    Returns a list of skills.
     """
+    if not text or not text.strip():
+        print("extract_skills_from_text: Empty text input, returning empty list")
+        return []
+
+    import time
     prompt = f"""
     Extract only the skills from the text below.
     Return them as a comma-separated list, nothing else.
@@ -24,15 +37,44 @@ def extract_skills_from_text(text):
     TEXT:
     {text}
     """
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200
-    )
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [
+            {
+                "parts": [{"text": prompt}]
+            }
+        ],
+        "generationConfig": {
+            "maxOutputTokens": 200
+        }
+    }
+    headers = {"Content-Type": "application/json"}
+    
+    for attempt in range(4):
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=15)
+            if resp.status_code == 429:
+                sleep_time = (2 ** attempt) + 1
+                print(f"Rate limited (429) in Content API. Retrying in {sleep_time}s...")
+                time.sleep(sleep_time)
+                continue
+            
+            if resp.status_code != 200:
+                print(f"Gemini Content API Error (Status {resp.status_code}): {resp.text}")
+            resp.raise_for_status()
+            res_data = resp.json()
+            content = res_data["candidates"][0]["content"]["parts"][0]["text"]
+            # Split by comma and return clean list
+            return [s.strip() for s in content.split(",") if s.strip()]
+        except Exception as e:
+            print(f"Error calling Gemini Content API (attempt {attempt+1}): {e}")
+            if attempt == 3:
+                return []
+            time.sleep(1)
+            
+    return []
 
-    content = response.choices[0].message.content
 
-    return content.strip()
 
 def normalize_skill(s):
     s = s.lower().strip()
@@ -60,7 +102,6 @@ def get_primary_skill(jd_skills, resume_skills):
     resume_norm = set(resume_list)
 
     overlap = jd_norm.intersection(resume_norm)
-    # print("Overlap skills:", overlap)
 
     # filter only primary tech skills
     primary = [s for s in overlap if s in PRIMARY_TECH_SKILLS]
@@ -68,7 +109,10 @@ def get_primary_skill(jd_skills, resume_skills):
     if not primary:
         return "None"
 
-    return primary[0].title()  # take top
+    # Return top 5 primary skills as a comma-separated string!
+    formatted_skills = [s.title() for s in primary[:5]]
+    return ", ".join(formatted_skills)
+
 
 
 def calculate_skill_overlap(jd_skills, resume_skills):

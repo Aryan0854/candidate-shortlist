@@ -1,45 +1,39 @@
-"""
-migrate_supabase_http.py
+const { Client } = require('pg');
+const path = require('path');
+const fs = require('fs');
 
-Runs the full database migration to Supabase using the Management API
-over HTTPS (port 443). This bypasses corporate firewall blocks on ports
-5432 and 6543.
+// Simple helper to load .env.local manually since dotenv might not be installed
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '../.env.local');
+  if (fs.existsSync(envPath)) {
+    const envFile = fs.readFileSync(envPath, 'utf8');
+    envFile.split('\n').forEach(line => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const key = match[1];
+        let value = match[2] || '';
+        // Remove quotes if present
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.substring(1, value.length - 1);
+        } else if (value.startsWith("'") && value.endsWith("'")) {
+          value = value.substring(1, value.length - 1);
+        }
+        process.env[key] = value;
+      }
+    });
+  }
+}
 
-Requirements:
-  - pip install requests
-  - Set your Supabase Personal Access Token below (or as env var SUPABASE_TOKEN)
+loadEnv();
 
-How to get your Personal Access Token:
-  1. Go to https://supabase.com/dashboard/account/tokens
-  2. Click "Generate new token"
-  3. Give it a name like "migration-token"
-  4. Copy the token and set it below
+const connectionString = process.env.DATABASE_URL;
 
-Usage:
-  python migrate_supabase_http.py
-"""
+if (!connectionString) {
+  console.error("Error: DATABASE_URL is not set in nextjs-app/.env.local");
+  process.exit(1);
+}
 
-import os
-import sys
-import json
-import requests
-
-# ──────────────────────────────────────────────────────────
-# CONFIGURATION
-# ──────────────────────────────────────────────────────────
-PROJECT_REF = "xypizdyvhdjwbsvecrif"
-
-# Set this to your Supabase Personal Access Token
-# OR set the env variable: $env:SUPABASE_TOKEN="your-token-here"
-SUPABASE_TOKEN = os.getenv("SUPABASE_TOKEN", "")
-
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ad" + "min")
-
-# ──────────────────────────────────────────────────────────
-# SQL STATEMENTS
-# ──────────────────────────────────────────────────────────
-
-SCHEMA_SQL = """
+const SCHEMA_SQL = `
 CREATE SCHEMA IF NOT EXISTS pmo;
 
 CREATE TABLE IF NOT EXISTS pmo.br_data (
@@ -91,7 +85,7 @@ CREATE TABLE IF NOT EXISTS pmo.employees (
     top_3_skills                       TEXT,
     rating_out_of_10_for_top_3_skills  TEXT,
     skills_category                    TEXT,
-    skills_bucket                       TEXT,
+    skills_bucket                      TEXT,
     detailed_skills                    TEXT,
     infinite_doj                       DATE,
     received_date                      DATE,
@@ -161,9 +155,10 @@ CREATE TABLE IF NOT EXISTS pmo.header_field_mapping (
     entity_field_name    VARCHAR(100) NOT NULL,
     active               BOOLEAN DEFAULT TRUE
 );
-"""
+`;
 
-DATA_SQL = """
+const SEED_SQL = `
+-- Seed mappings for BR Data import
 INSERT INTO pmo.header_field_mapping (entity_name, header_name, entity_field_name, active)
 VALUES
 ('BR_DATA', 'Auto req ID', 'autoReqId', true),
@@ -191,6 +186,7 @@ VALUES
 ('BR_DATA', 'ST (Bill Rate) Enter only numeric value and 0 for Non-Billable', 'stBillRate', true)
 ON CONFLICT DO NOTHING;
 
+-- Seed mappings for Employee Pool import
 INSERT INTO pmo.header_field_mapping (entity_name, header_name, entity_field_name, active)
 VALUES
 ('EMPLOYEE', 'Emp No', 'empNo', true),
@@ -224,73 +220,38 @@ VALUES
 ('EMPLOYEE', 'Preferred Location', 'preferredLocation', true),
 ('EMPLOYEE', 'Office Location', 'officeLocation', true)
 ON CONFLICT DO NOTHING;
-"""
 
-def run_sql(sql: str, description: str) -> bool:
-    """Execute SQL via Supabase Management API over HTTPS."""
-    url = f"https://api.supabase.com/v1/projects/{PROJECT_REF}/database/query"
-    headers = {
-        "Authorization": f"Bearer {SUPABASE_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    payload = {"query": sql}
+-- Seed default admin user
+INSERT INTO pmo.users (username, first_name, last_name, password, phone, email)
+VALUES ('admin', 'System', 'Admin', 'admin', '1234567890', 'admin@example.com')
+ON CONFLICT (username) DO NOTHING;
+`;
 
-    print(f"\n>> {description}...")
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-        if resp.status_code in (200, 201):
-            print(f"   [OK] Success")
-            return True
-        else:
-            print(f"   [FAIL] Failed [{resp.status_code}]: {resp.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"   [ERROR] Request error: {e}")
-        return False
+async function run() {
+  const client = new Client({
+    connectionString: connectionString,
+    ssl: { rejectUnauthorized: false }
+  });
 
+  try {
+    console.log("Connecting to Supabase Database...");
+    await client.connect();
+    console.log("Connected successfully. Running schema creation...");
+    
+    await client.query(SCHEMA_SQL);
+    console.log("Schema and tables verified/created.");
 
-def main():
-    if not SUPABASE_TOKEN:
-        print("\n[ERROR] SUPABASE_TOKEN is not set!")
-        print(
-            "\n   How to fix:\n"
-            "   1. Go to: https://supabase.com/dashboard/account/tokens\n"
-            "   2. Click 'Generate new token'\n"
-            "   3. Run this script with the token:\n\n"
-            "      $env:SUPABASE_TOKEN='your-token-here'\n"
-            "      python migrate_supabase_http.py\n"
-        )
-        sys.exit(1)
+    console.log("Running seed data insertion...");
+    await client.query(SEED_SQL);
+    console.log("Seed data applied successfully.");
 
-    print(f"\n[START] Starting Supabase HTTP Migration for project: {PROJECT_REF}")
-    print("   (Using HTTPS on port 443 - no firewall issues!)\n")
+    console.log("Database migration finished successfully!");
+  } catch (error) {
+    console.error("Migration failed:", error);
+    process.exit(1);
+  } finally {
+    await client.end();
+  }
+}
 
-    steps = [
-        (SCHEMA_SQL, "Creating schema and tables (IF NOT EXISTS - safe to re-run)"),
-        (DATA_SQL,   "Seeding header field mapping configuration data"),
-        (
-            f"INSERT INTO pmo.users (username, first_name, last_name, password, phone, email) "
-            f"VALUES ('admin', 'System', 'Admin', '{ADMIN_PASSWORD}', '1234567890', 'admin@example.com') "
-            f"ON CONFLICT (username) DO NOTHING;",
-            "Creating default admin user"
-        ),
-    ]
-
-    all_ok = True
-    for sql, desc in steps:
-        ok = run_sql(sql, desc)
-        if not ok:
-            all_ok = False
-
-    print("\n" + ("="*50))
-    if all_ok:
-        print("[DONE] Migration completed successfully!")
-        print(f"\n   Your Supabase database is ready at:")
-        print(f"   https://supabase.com/dashboard/project/{PROJECT_REF}/editor")
-    else:
-        print("[WARN] Migration completed with some errors. Check output above.")
-    print("="*50 + "\n")
-
-
-if __name__ == "__main__":
-    main()
+run();

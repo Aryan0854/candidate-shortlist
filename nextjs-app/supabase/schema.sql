@@ -1,47 +1,12 @@
-"""
-migrate_supabase_http.py
+-- -------------------------------------------------------------
+-- Candidate Shortlist Platform — Supabase SQL Migration
+-- Run this script in the Supabase SQL Editor (https://supabase.com)
+-- to initialize the schema, tables, mappings, and default admin user.
+-- -------------------------------------------------------------
 
-Runs the full database migration to Supabase using the Management API
-over HTTPS (port 443). This bypasses corporate firewall blocks on ports
-5432 and 6543.
-
-Requirements:
-  - pip install requests
-  - Set your Supabase Personal Access Token below (or as env var SUPABASE_TOKEN)
-
-How to get your Personal Access Token:
-  1. Go to https://supabase.com/dashboard/account/tokens
-  2. Click "Generate new token"
-  3. Give it a name like "migration-token"
-  4. Copy the token and set it below
-
-Usage:
-  python migrate_supabase_http.py
-"""
-
-import os
-import sys
-import json
-import requests
-
-# ──────────────────────────────────────────────────────────
-# CONFIGURATION
-# ──────────────────────────────────────────────────────────
-PROJECT_REF = "xypizdyvhdjwbsvecrif"
-
-# Set this to your Supabase Personal Access Token
-# OR set the env variable: $env:SUPABASE_TOKEN="your-token-here"
-SUPABASE_TOKEN = os.getenv("SUPABASE_TOKEN", "")
-
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ad" + "min")
-
-# ──────────────────────────────────────────────────────────
-# SQL STATEMENTS
-# ──────────────────────────────────────────────────────────
-
-SCHEMA_SQL = """
 CREATE SCHEMA IF NOT EXISTS pmo;
 
+-- 1. Job Requirements Table
 CREATE TABLE IF NOT EXISTS pmo.br_data (
     auto_req_id                 VARCHAR(100) PRIMARY KEY,
     current_req_status          VARCHAR(100),
@@ -74,6 +39,7 @@ CREATE TABLE IF NOT EXISTS pmo.br_data (
     modified_date               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 2. Internal Employees (Candidates Pool) Table
 CREATE TABLE IF NOT EXISTS pmo.employees (
     emp_no                             VARCHAR(30) PRIMARY KEY,
     emp_name                           VARCHAR(255),
@@ -91,7 +57,7 @@ CREATE TABLE IF NOT EXISTS pmo.employees (
     top_3_skills                       TEXT,
     rating_out_of_10_for_top_3_skills  TEXT,
     skills_category                    TEXT,
-    skills_bucket                       TEXT,
+    skills_bucket                      TEXT,
     detailed_skills                    TEXT,
     infinite_doj                       DATE,
     received_date                      DATE,
@@ -111,6 +77,7 @@ CREATE TABLE IF NOT EXISTS pmo.employees (
     modified_date                      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 3. BR-to-Employee Matches Cache Table
 CREATE TABLE IF NOT EXISTS pmo.br_employee_match (
     auto_req_id VARCHAR(50) REFERENCES pmo.br_data(auto_req_id) ON DELETE CASCADE,
     emp_no VARCHAR(50) REFERENCES pmo.employees(emp_no) ON DELETE CASCADE,
@@ -119,6 +86,7 @@ CREATE TABLE IF NOT EXISTS pmo.br_employee_match (
     PRIMARY KEY (auto_req_id, emp_no, skill_name)
 );
 
+-- 4. BR Skill Map Table
 CREATE TABLE IF NOT EXISTS pmo.br_skill_map (
     auto_req_id VARCHAR(50) REFERENCES pmo.br_data(auto_req_id) ON DELETE CASCADE,
     skill_name VARCHAR(255),
@@ -126,6 +94,7 @@ CREATE TABLE IF NOT EXISTS pmo.br_skill_map (
     PRIMARY KEY (auto_req_id, skill_name)
 );
 
+-- 5. Users Table
 CREATE TABLE IF NOT EXISTS pmo.users (
     user_id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -136,6 +105,7 @@ CREATE TABLE IF NOT EXISTS pmo.users (
     email VARCHAR(100) UNIQUE NOT NULL
 );
 
+-- 6. Temporary Secure Tokens for Magic Link Login
 CREATE TABLE IF NOT EXISTS pmo.temp_login_tokens (
     id SERIAL PRIMARY KEY,
     email VARCHAR(100) NOT NULL,
@@ -145,6 +115,7 @@ CREATE TABLE IF NOT EXISTS pmo.temp_login_tokens (
     redirect_path VARCHAR(500)
 );
 
+-- 7. Employee Document Registry
 CREATE TABLE IF NOT EXISTS pmo.candidate_profile_document (
     candidate_profile_document_id SERIAL PRIMARY KEY,
     emp_no VARCHAR(30) REFERENCES pmo.employees(emp_no) ON DELETE CASCADE,
@@ -154,6 +125,7 @@ CREATE TABLE IF NOT EXISTS pmo.candidate_profile_document (
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 8. Dynamic Mapping for Importing Excel Headers
 CREATE TABLE IF NOT EXISTS pmo.header_field_mapping (
     id                  BIGSERIAL PRIMARY KEY,
     entity_name          VARCHAR(50) NOT NULL,
@@ -161,9 +133,12 @@ CREATE TABLE IF NOT EXISTS pmo.header_field_mapping (
     entity_field_name    VARCHAR(100) NOT NULL,
     active               BOOLEAN DEFAULT TRUE
 );
-"""
 
-DATA_SQL = """
+-- -------------------------------------------------------------
+-- SEED DATA
+-- -------------------------------------------------------------
+
+-- Seed mappings for BR Data import
 INSERT INTO pmo.header_field_mapping (entity_name, header_name, entity_field_name, active)
 VALUES
 ('BR_DATA', 'Auto req ID', 'autoReqId', true),
@@ -191,6 +166,7 @@ VALUES
 ('BR_DATA', 'ST (Bill Rate) Enter only numeric value and 0 for Non-Billable', 'stBillRate', true)
 ON CONFLICT DO NOTHING;
 
+-- Seed mappings for Employee Pool import
 INSERT INTO pmo.header_field_mapping (entity_name, header_name, entity_field_name, active)
 VALUES
 ('EMPLOYEE', 'Emp No', 'empNo', true),
@@ -224,73 +200,8 @@ VALUES
 ('EMPLOYEE', 'Preferred Location', 'preferredLocation', true),
 ('EMPLOYEE', 'Office Location', 'officeLocation', true)
 ON CONFLICT DO NOTHING;
-"""
 
-def run_sql(sql: str, description: str) -> bool:
-    """Execute SQL via Supabase Management API over HTTPS."""
-    url = f"https://api.supabase.com/v1/projects/{PROJECT_REF}/database/query"
-    headers = {
-        "Authorization": f"Bearer {SUPABASE_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    payload = {"query": sql}
-
-    print(f"\n>> {description}...")
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-        if resp.status_code in (200, 201):
-            print(f"   [OK] Success")
-            return True
-        else:
-            print(f"   [FAIL] Failed [{resp.status_code}]: {resp.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"   [ERROR] Request error: {e}")
-        return False
-
-
-def main():
-    if not SUPABASE_TOKEN:
-        print("\n[ERROR] SUPABASE_TOKEN is not set!")
-        print(
-            "\n   How to fix:\n"
-            "   1. Go to: https://supabase.com/dashboard/account/tokens\n"
-            "   2. Click 'Generate new token'\n"
-            "   3. Run this script with the token:\n\n"
-            "      $env:SUPABASE_TOKEN='your-token-here'\n"
-            "      python migrate_supabase_http.py\n"
-        )
-        sys.exit(1)
-
-    print(f"\n[START] Starting Supabase HTTP Migration for project: {PROJECT_REF}")
-    print("   (Using HTTPS on port 443 - no firewall issues!)\n")
-
-    steps = [
-        (SCHEMA_SQL, "Creating schema and tables (IF NOT EXISTS - safe to re-run)"),
-        (DATA_SQL,   "Seeding header field mapping configuration data"),
-        (
-            f"INSERT INTO pmo.users (username, first_name, last_name, password, phone, email) "
-            f"VALUES ('admin', 'System', 'Admin', '{ADMIN_PASSWORD}', '1234567890', 'admin@example.com') "
-            f"ON CONFLICT (username) DO NOTHING;",
-            "Creating default admin user"
-        ),
-    ]
-
-    all_ok = True
-    for sql, desc in steps:
-        ok = run_sql(sql, desc)
-        if not ok:
-            all_ok = False
-
-    print("\n" + ("="*50))
-    if all_ok:
-        print("[DONE] Migration completed successfully!")
-        print(f"\n   Your Supabase database is ready at:")
-        print(f"   https://supabase.com/dashboard/project/{PROJECT_REF}/editor")
-    else:
-        print("[WARN] Migration completed with some errors. Check output above.")
-    print("="*50 + "\n")
-
-
-if __name__ == "__main__":
-    main()
+-- Seed default admin user
+INSERT INTO pmo.users (username, first_name, last_name, password, phone, email)
+VALUES ('admin', 'System', 'Admin', 'admin', '1234567890', 'admin@example.com')
+ON CONFLICT (username) DO NOTHING;

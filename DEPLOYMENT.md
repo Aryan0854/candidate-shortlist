@@ -1,62 +1,77 @@
-# Candidate Shortlist Platform — Deployment Guide
+# Migrated Platform — Production Deployment Guide
 
-## Architecture
+This guide details how to host and deploy the migrated Recruitment Automation Platform in production.
+
+---
+
+## 🏗️ Architecture Overview
 
 ```
-Vercel (React Frontend)
-    │
-    ├──► Render (Spring Boot :8081)  ──► Supabase (PostgreSQL)
-    ├──► Render (Candidate API :8000) ──► Supabase (PostgreSQL)
-    └──► Render (Resume API :8001)
+             ┌──────────────────────────────────────────┐
+             │            Vercel Frontend               │
+             │             (Next.js App)                │
+             └──────┬────────────────────────────┬──────┘
+                    │                            │
+                    ▼ (Proxied via /api/*)       ▼ (Direct SQL Pooler)
+     ┌──────────────────────────────┐     ┌──────────────────────────────┐
+     │        Render Hosting        │     │       Supabase Cloud         │
+     │  (FastAPI Microservices)     │     │    (PostgreSQL & Storage)    │
+     │                              │     │                              │
+     │  - :8000 candidate-shortlist │     │  - pmo schema tables         │
+     │  - :8001 resume-screening    │     │  - resume storage bucket     │
+     │    (uses Gemini API)         │     │                              │
+     └──────────────────────────────┘     └──────────────────────────────┘
 ```
 
 ---
 
-## Step 1: Deploy Backend Services on Render
+## 1. Database Setup: Supabase Cloud
 
-### A. Connect GitHub to Render
-1. Go to **https://dashboard.render.com**
-2. Click **"New +"** → **"Blueprint"**
-3. Connect to GitHub → select **`Aryan0854/candidate-shortlist`**
-4. Render detects `render.yaml` and creates all 3 services automatically
-
-### B. Set Secret Environment Variables (Render Dashboard)
-After the services are created, go to each service → **Environment** → add:
-
-| Service | Variable | Value |
-|---------|----------|-------|
-| `pmo-spring-boot` | `DB_PASSWORD` | `kcDwjY7a_#2FpF8` |
-| `pmo-candidate-shortlist` | `DB_PASSWORD` | `kcDwjY7a_#2FpF8` |
-| `pmo-resume-screening` | `OPENAI_API_KEY` | *(your real OpenAI key)* |
+1. **Create a Supabase Project**:
+   - Go to [Supabase Dashboard](https://supabase.com) and create a new project.
+2. **Initialize Schema & Seed Data**:
+   - Open the **SQL Editor** in Supabase.
+   - Copy the contents of [`nextjs-app/supabase/schema.sql`](file:///c:/Users/aryanmi/Downloads/Pre-Proj/nextjs-app/supabase/schema.sql) and execute the query. This creates the `pmo` schema, tables, seed configurations, and the default admin user.
+3. **Configure Storage Buckets**:
+   - Create two storage buckets inside the Supabase Storage dashboard:
+     - `resumes`: Set to private (for candidate profiles).
+     - `documents`: Set to private (for other uploaded files).
 
 ---
 
-## Step 2: Deploy React Frontend on Vercel
+## 2. Microservice Setup: Render Hosting
 
-1. Go to **https://vercel.com/new**
-2. Import from GitHub → select **`Aryan0854/candidate-shortlist`**
-3. Set **Root Directory** to: `React 1`
-4. Framework preset: **Create React App**
-5. Add environment variables:
+We host the two FastAPI backend microservices on Render using their respective `Dockerfile`s.
 
-| Variable | Value |
-|----------|-------|
-| `REACT_APP_API_URL` | `https://pmo-spring-boot.onrender.com` |
-| `REACT_APP_AI_API_URL` | `https://pmo-candidate-shortlist.onrender.com` |
-| `REACT_APP_RESUME_API_URL` | `https://pmo-resume-screening.onrender.com` |
+1. **Deploy Candidate Shortlist Service (`pmo-candidate-shortlist`)**:
+   - Create a new **Web Service** on Render.
+   - Connect your repository and set the **Root Directory** to: `candidate-shortlist`.
+   - Render automatically detects the `Dockerfile` and builds it.
+   - **Environment Variables**:
+     - `DATABASE_URL`: `postgresql://postgres.[ref]:[password]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require` (your Supabase connection pooler string).
 
-6. Click **Deploy**
-
----
-
-## Step 3: Update Frontend URL in Spring Boot
-
-After Vercel gives you the final URL (e.g. `https://pmo-xyz.vercel.app`):
-- Go to Render → `pmo-spring-boot` → Environment
-- Add: `CORS_ALLOWED_ORIGINS` = `https://pmo-xyz.vercel.app`
+2. **Deploy Resume Screening Service (`pmo-resume-screening`)**:
+   - Create a new **Web Service** on Render.
+   - Connect your repository and set the **Root Directory** to: `resume-screening`.
+   - **Environment Variables**:
+     - `GEMINI_API_KEY`: `AIzaSyBRn0swmMrdbvgwOwKDQUGyA1CBfiukLE` (or your production Gemini API key).
 
 ---
 
-## Default Credentials
-- **Username**: `admin`
-- **Password**: `admin`
+## 3. Fullstack Frontend Setup: Vercel
+
+Vercel is the recommended environment for hosting Next.js App Router applications.
+
+1. **Deploy Next.js on Vercel**:
+   - Go to [Vercel](https://vercel.com/new) and import your repository.
+   - Set the **Root Directory** to: `nextjs-app`.
+   - Keep the Framework preset as **Next.js**.
+2. **Configure Environment Variables**:
+   - Add the following variables in the Vercel project settings:
+     - `NEXT_PUBLIC_SUPABASE_URL`: `https://[ref].supabase.co`
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: `[your-anon-key]`
+     - `SUPABASE_SERVICE_ROLE_KEY`: `[your-service-role-key]`
+     - `DATABASE_URL`: `postgres://postgres.[ref]:[password]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require`
+     - `PYTHON_AI_API_URL`: `https://pmo-candidate-shortlist.onrender.com` (your Render URL for port 8000)
+     - `PYTHON_RESUME_API_URL`: `https://pmo-resume-screening.onrender.com` (your Render URL for port 8001)
+3. **Click Deploy**. Vercel will build the frontend pages and host them globally.

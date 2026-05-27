@@ -10,30 +10,6 @@
 
 services:
 
-  # ─── Spring Boot Backend ──────────────────────────────────────────────────
-  - name: pmo-spring-boot
-    type: web
-    runtime: docker
-    dockerfilePath: ./spring-boot/Dockerfile
-    dockerContext: ./spring-boot
-    plan: free
-    healthCheckPath: /api/user/health
-    envVars:
-      - key: DB_URL
-        value: jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres?prepareThreshold=0
-      - key: DB_USERNAME
-        value: postgres.cfqpdjpvzgkvpipainzp
-      - key: DB_PASSWORD
-        sync: false   # Set this secret in Render dashboard
-      - key: python_skillsmatch_url
-        fromService:
-          name: pmo-candidate-shortlist
-          type: web
-          property: host
-          # Render will fill this in as https://<candidate-shortlist-url>/match-skills/
-      - key: app_frontend_url
-        value: https://pmo-react.vercel.app   # Update after Vercel deploy
-
   # ─── Candidate Shortlist Python FastAPI (port 8000) ──────────────────────
   - name: pmo-candidate-shortlist
     type: web
@@ -43,9 +19,9 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres.cfqpdjpvzgkvpipainzp:$(DB_PASSWORD)@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+        value: postgresql://postgres.xypizdyvhdjwbsvecrif:$(DB_PASSWORD)@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
       - key: DB_PASSWORD
-        sync: false   # Set this secret in Render dashboard
+        sync: false   # Set your database password secret in Render dashboard
 
   # ─── Resume Screening Python FastAPI (port 8001) ─────────────────────────
   - name: pmo-resume-screening
@@ -55,5 +31,6 @@ services:
     dockerContext: ./resume-screening
     plan: free
     envVars:
-      - key: OPENAI_API_KEY
-        sync: false   # Set your real OpenAI API key in Render dashboard
+      - key: GEMINI_API_KEY
+        sync: false   # Set your Gemini API key secret in Render dashboard
+

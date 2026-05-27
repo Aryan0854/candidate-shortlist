@@ -60,3 +60,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for full instructions on deploying to Rende
 ## Environment Variables
 
 See [`.env.example`](./.env.example) for a full list of required environment variables.
+
+
+.\start_migrated_services.ps1
