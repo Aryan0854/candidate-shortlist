@@ -14,3 +14,4 @@ python-multipart
 PyPDF2
 python-docx
 reportlab
+requests
